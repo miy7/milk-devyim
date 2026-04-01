@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# milk-devyim
 
-## Getting Started
+Internal operations dashboard built with Next.js App Router, TypeScript, Tailwind CSS, Prisma, and PostgreSQL.
 
-First, run the development server:
+## What’s included
+
+- Login-based access control with cookie sessions
+- Role-aware navigation for `admin`, `manager`, and `employee`
+- Executive-style dark dashboard UI
+- Work plan management with create, edit, delete, assignment, and filtering
+- Dedicated month/week/day calendar
+- Employee daily finance tracking with summary totals
+- Employee management with role and status control
+- Management reports with date-range totals and chart-ready layout
+- Prisma schema, seed data, and Vercel-ready structure
+
+## Stack
+
+- Next.js 16 App Router
+- React 19
+- Tailwind CSS 4
+- Prisma 7 with `@prisma/adapter-pg`
+- PostgreSQL
+
+## Setup
+
+1. Copy `.env.example` to `.env`.
+2. Set `DATABASE_URL` to your PostgreSQL connection string.
+3. Set `SESSION_SECRET` to a long random value.
+4. Install dependencies and generate the Prisma client:
+
+```bash
+npm install
+```
+
+5. Push the schema and seed the database:
+
+```bash
+npm run db:push
+npm run db:seed
+```
+
+6. Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo credentials
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `admin` / `Milk@123`
+- `manager` / `Milk@123`
+- `employee` / `Milk@123`
 
-## Learn More
+## Useful scripts
 
-To learn more about Next.js, take a look at the following resources:
+- `npm run dev` - start the local app
+- `npm run build` - production build
+- `npm run lint` - ESLint
+- `npm run db:push` - sync Prisma schema to PostgreSQL
+- `npm run db:seed` - seed demo users, plans, employees, finance, and activity
+- `npm run db:studio` - open Prisma Studio
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+app/
+  (auth)/login
+  (app)/
+    dashboard
+    work-plans
+    calendar
+    employee-finance
+    employees
+    reports
+    settings
+  _actions/
+components/
+  calendar/
+  employees/
+  finance/
+  forms/
+  layout/
+  ui/
+  work-plans/
+lib/
+  auth/
+prisma/
+types/
+```
 
-## Deploy on Vercel
+## Deployment notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Set `DATABASE_URL` and `SESSION_SECRET` in Vercel environment variables.
+- Run `npm run db:push` and `npm run db:seed` against your target database if you want demo data.
+- Replace seeded development credentials before production use.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Verification
+
+- `npm run build`
+- `npm run lint`
