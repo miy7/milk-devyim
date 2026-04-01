@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 
+require("dotenv/config");
+
 const { randomBytes, scryptSync } = require("node:crypto");
+const { PrismaPg } = require("@prisma/adapter-pg");
 const {
   PrismaClient,
   Role,
@@ -9,7 +12,16 @@ const {
   WorkPlanStatus,
 } = require("@prisma/client");
 
-const prisma = new PrismaClient();
+const connectionString =
+  process.env.DATABASE_URL ||
+  process.env.PRISMA_DATABASE_URL ||
+  process.env.POSTGRES_URL;
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({
+    connectionString,
+  }),
+});
 
 function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
@@ -34,81 +46,92 @@ async function main() {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
 
-  await prisma.activityLog.deleteMany();
-  await prisma.employeeFinance.deleteMany();
-  await prisma.workPlanAssignment.deleteMany();
-  await prisma.workPlan.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.employee.deleteMany();
+  async function findOrCreateEmployee(data) {
+    const existing = await prisma.employee.findFirst({
+      where: {
+        OR: [
+          { phone: data.phone || undefined },
+          { fullName: data.fullName },
+        ],
+      },
+    });
+
+    if (existing) {
+      return prisma.employee.update({
+        where: { id: existing.id },
+        data,
+      });
+    }
+
+    return prisma.employee.create({ data });
+  }
 
   const employees = await Promise.all([
-    prisma.employee.create({
-      data: {
-        fullName: "Niran Wongchai",
-        nickname: "Niran",
-        phone: "+66 81 555 0101",
-        position: "Operations Director",
-        dailyRate: 180,
-        role: Role.ADMIN,
-        status: EmployeeStatus.ACTIVE,
-        note: "Oversees delivery, staffing, and financial approvals.",
-      },
+    findOrCreateEmployee({
+      fullName: "Niran Wongchai",
+      nickname: "Niran",
+      phone: "+66 81 555 0101",
+      position: "Operations Director",
+      dailyRate: 180,
+      role: Role.ADMIN,
+      status: EmployeeStatus.ACTIVE,
+      note: "Oversees delivery, staffing, and financial approvals.",
     }),
-    prisma.employee.create({
-      data: {
-        fullName: "Kanda Srisawat",
-        nickname: "Kanda",
-        phone: "+66 81 555 0102",
-        position: "Field Manager",
-        dailyRate: 140,
-        role: Role.MANAGER,
-        status: EmployeeStatus.ACTIVE,
-        note: "Coordinates daily work plans and crew schedules.",
-      },
+    findOrCreateEmployee({
+      fullName: "Kanda Srisawat",
+      nickname: "Kanda",
+      phone: "+66 81 555 0102",
+      position: "Field Manager",
+      dailyRate: 140,
+      role: Role.MANAGER,
+      status: EmployeeStatus.ACTIVE,
+      note: "Coordinates daily work plans and crew schedules.",
     }),
-    prisma.employee.create({
-      data: {
-        fullName: "Preecha Saelim",
-        nickname: "Pree",
-        phone: "+66 81 555 0103",
-        position: "Senior Technician",
-        dailyRate: 95,
-        role: Role.EMPLOYEE,
-        status: EmployeeStatus.ACTIVE,
-        note: "Assigned to installation and service jobs.",
-      },
+    findOrCreateEmployee({
+      fullName: "Preecha Saelim",
+      nickname: "Pree",
+      phone: "+66 81 555 0103",
+      position: "Senior Technician",
+      dailyRate: 95,
+      role: Role.EMPLOYEE,
+      status: EmployeeStatus.ACTIVE,
+      note: "Assigned to installation and service jobs.",
     }),
-    prisma.employee.create({
-      data: {
-        fullName: "Mali Chantarang",
-        nickname: "Mali",
-        phone: "+66 81 555 0104",
-        position: "Account Coordinator",
-        dailyRate: 88,
-        role: Role.EMPLOYEE,
-        status: EmployeeStatus.ACTIVE,
-        note: "Supports finance entry and document follow-up.",
-      },
+    findOrCreateEmployee({
+      fullName: "Mali Chantarang",
+      nickname: "Mali",
+      phone: "+66 81 555 0104",
+      position: "Account Coordinator",
+      dailyRate: 88,
+      role: Role.EMPLOYEE,
+      status: EmployeeStatus.ACTIVE,
+      note: "Supports finance entry and document follow-up.",
     }),
-    prisma.employee.create({
-      data: {
-        fullName: "Somchai Klinrak",
-        nickname: "Chai",
-        phone: "+66 81 555 0105",
-        position: "Warehouse Support",
-        dailyRate: 72,
-        role: Role.EMPLOYEE,
-        status: EmployeeStatus.INACTIVE,
-        note: "Inactive after March rotation.",
-      },
+    findOrCreateEmployee({
+      fullName: "Somchai Klinrak",
+      nickname: "Chai",
+      phone: "+66 81 555 0105",
+      position: "Warehouse Support",
+      dailyRate: 72,
+      role: Role.EMPLOYEE,
+      status: EmployeeStatus.INACTIVE,
+      note: "Inactive after March rotation.",
     }),
   ]);
 
   const [adminEmployee, managerEmployee, technicianEmployee, coordinatorEmployee] =
     employees;
 
-  const adminUser = await prisma.user.create({
-    data: {
+  const adminUser = await prisma.user.upsert({
+    where: { username: "admin" },
+    update: {
+      name: "Niran Wongchai",
+      email: "admin@milk-devyim.local",
+      passwordHash: defaultPasswordHash,
+      role: Role.ADMIN,
+      employeeId: adminEmployee.id,
+    },
+    create: {
       name: "Niran Wongchai",
       email: "admin@milk-devyim.local",
       username: "admin",
@@ -118,8 +141,16 @@ async function main() {
     },
   });
 
-  const managerUser = await prisma.user.create({
-    data: {
+  const managerUser = await prisma.user.upsert({
+    where: { username: "manager" },
+    update: {
+      name: "Kanda Srisawat",
+      email: "manager@milk-devyim.local",
+      passwordHash: defaultPasswordHash,
+      role: Role.MANAGER,
+      employeeId: managerEmployee.id,
+    },
+    create: {
       name: "Kanda Srisawat",
       email: "manager@milk-devyim.local",
       username: "manager",
@@ -129,8 +160,16 @@ async function main() {
     },
   });
 
-  const employeeUser = await prisma.user.create({
-    data: {
+  const employeeUser = await prisma.user.upsert({
+    where: { username: "employee" },
+    update: {
+      name: "Preecha Saelim",
+      email: "employee@milk-devyim.local",
+      passwordHash: defaultPasswordHash,
+      role: Role.EMPLOYEE,
+      employeeId: technicianEmployee.id,
+    },
+    create: {
       name: "Preecha Saelim",
       email: "employee@milk-devyim.local",
       username: "employee",
@@ -140,8 +179,11 @@ async function main() {
     },
   });
 
-  const workPlans = await Promise.all([
-    prisma.workPlan.create({
+  const existingPlansCount = await prisma.workPlan.count();
+
+  if (existingPlansCount === 0) {
+    const workPlans = await Promise.all([
+      prisma.workPlan.create({
       data: {
         title: "Warehouse restock coordination",
         description: "Reconcile received inventory and prepare delivery manifests.",
@@ -159,8 +201,8 @@ async function main() {
           ],
         },
       },
-    }),
-    prisma.workPlan.create({
+      }),
+      prisma.workPlan.create({
       data: {
         title: "Client site inspection",
         description: "Inspect piping changes, verify materials, and confirm labor scope.",
@@ -175,8 +217,8 @@ async function main() {
           create: [{ employeeId: technicianEmployee.id }],
         },
       },
-    }),
-    prisma.workPlan.create({
+      }),
+      prisma.workPlan.create({
       data: {
         title: "Crew payroll review",
         description: "Verify wage entries, bonus adjustments, and pending advances.",
@@ -191,8 +233,8 @@ async function main() {
           create: [{ employeeId: coordinatorEmployee.id }],
         },
       },
-    }),
-    prisma.workPlan.create({
+      }),
+      prisma.workPlan.create({
       data: {
         title: "Preventive maintenance block",
         description: "Routine inspection for refrigeration units at Building B.",
@@ -210,8 +252,8 @@ async function main() {
           ],
         },
       },
-    }),
-    prisma.workPlan.create({
+      }),
+      prisma.workPlan.create({
       data: {
         title: "Monthly management close",
         description: "Prepare operations summary, labor totals, and open-risk review.",
@@ -229,114 +271,115 @@ async function main() {
           ],
         },
       },
-    }),
-  ]);
+      }),
+    ]);
 
-  await prisma.employeeFinance.createMany({
-    data: [
-      {
-        employeeId: technicianEmployee.id,
-        workPlanId: workPlans[0].id,
-        createdById: managerUser.id,
-        date: addDays(today, -1),
-        workReference: "Warehouse restock coordination",
-        dailyWage: 95,
-        bonus: 12,
-        deduction: 0,
-        advancePayment: 0,
-        totalPayable: 107,
-        paymentStatus: PaymentStatus.PAID,
-        note: "Completed unloading and count verification.",
-      },
-      {
-        employeeId: coordinatorEmployee.id,
-        workPlanId: workPlans[0].id,
-        createdById: managerUser.id,
-        date: addDays(today, -1),
-        workReference: "Warehouse restock coordination",
-        dailyWage: 88,
-        bonus: 0,
-        deduction: 6,
-        advancePayment: 10,
-        totalPayable: 72,
-        paymentStatus: PaymentStatus.PARTIAL,
-        note: "Advance already paid for transport allowance.",
-      },
-      {
-        employeeId: technicianEmployee.id,
-        workPlanId: workPlans[1].id,
-        createdById: managerUser.id,
-        date: today,
-        workReference: "Client site inspection",
-        dailyWage: 95,
-        bonus: 10,
-        deduction: 0,
-        advancePayment: 0,
-        totalPayable: 105,
-        paymentStatus: PaymentStatus.PENDING,
-        note: "Will close after the site pack is approved.",
-      },
-      {
-        employeeId: coordinatorEmployee.id,
-        workPlanId: workPlans[2].id,
-        createdById: adminUser.id,
-        date: today,
-        workReference: "Crew payroll review",
-        dailyWage: 88,
-        bonus: 4,
-        deduction: 0,
-        advancePayment: 0,
-        totalPayable: 92,
-        paymentStatus: PaymentStatus.PENDING,
-        note: "Finance verification task.",
-      },
-    ],
-  });
+    await prisma.employeeFinance.createMany({
+      data: [
+        {
+          employeeId: technicianEmployee.id,
+          workPlanId: workPlans[0].id,
+          createdById: managerUser.id,
+          date: addDays(today, -1),
+          workReference: "Warehouse restock coordination",
+          dailyWage: 95,
+          bonus: 12,
+          deduction: 0,
+          advancePayment: 0,
+          totalPayable: 107,
+          paymentStatus: PaymentStatus.PAID,
+          note: "Completed unloading and count verification.",
+        },
+        {
+          employeeId: coordinatorEmployee.id,
+          workPlanId: workPlans[0].id,
+          createdById: managerUser.id,
+          date: addDays(today, -1),
+          workReference: "Warehouse restock coordination",
+          dailyWage: 88,
+          bonus: 0,
+          deduction: 6,
+          advancePayment: 10,
+          totalPayable: 72,
+          paymentStatus: PaymentStatus.PARTIAL,
+          note: "Advance already paid for transport allowance.",
+        },
+        {
+          employeeId: technicianEmployee.id,
+          workPlanId: workPlans[1].id,
+          createdById: managerUser.id,
+          date: today,
+          workReference: "Client site inspection",
+          dailyWage: 95,
+          bonus: 10,
+          deduction: 0,
+          advancePayment: 0,
+          totalPayable: 105,
+          paymentStatus: PaymentStatus.PENDING,
+          note: "Will close after the site pack is approved.",
+        },
+        {
+          employeeId: coordinatorEmployee.id,
+          workPlanId: workPlans[2].id,
+          createdById: adminUser.id,
+          date: today,
+          workReference: "Crew payroll review",
+          dailyWage: 88,
+          bonus: 4,
+          deduction: 0,
+          advancePayment: 0,
+          totalPayable: 92,
+          paymentStatus: PaymentStatus.PENDING,
+          note: "Finance verification task.",
+        },
+      ],
+    });
 
-  await prisma.activityLog.createMany({
-    data: [
-      {
-        actorId: adminUser.id,
-        action: "LOGIN",
-        entityType: "SESSION",
-        entityId: adminUser.id,
-        description: "Admin signed into the control center.",
-        createdAt: atDay(today, 8),
-      },
-      {
-        actorId: managerUser.id,
-        action: "PLAN_CREATED",
-        entityType: "WORK_PLAN",
-        entityId: workPlans[1].id,
-        description: "Created the client site inspection schedule.",
-        createdAt: atDay(today, 8),
-      },
-      {
-        actorId: managerUser.id,
-        action: "PLAN_UPDATED",
-        entityType: "WORK_PLAN",
-        entityId: workPlans[1].id,
-        description: "Moved the inspection status to in progress.",
-        createdAt: atDay(today, 9),
-      },
-      {
-        actorId: adminUser.id,
-        action: "FINANCE_REVIEW",
-        entityType: "EMPLOYEE_FINANCE",
-        entityId: null,
-        description: "Reviewed open wage entries for today.",
-        createdAt: atDay(today, 10),
-      },
-      {
-        actorId: employeeUser.id,
-        action: "PLAN_VIEWED",
-        entityType: "WORK_PLAN",
-        entityId: workPlans[1].id,
-        description: "Opened assigned plan details from the employee view.",
-        createdAt: atDay(today, 11),
-      },
-    ],
-  });
+    await prisma.activityLog.createMany({
+      data: [
+        {
+          actorId: adminUser.id,
+          action: "LOGIN",
+          entityType: "SESSION",
+          entityId: adminUser.id,
+          description: "Admin signed into the control center.",
+          createdAt: atDay(today, 8),
+        },
+        {
+          actorId: managerUser.id,
+          action: "PLAN_CREATED",
+          entityType: "WORK_PLAN",
+          entityId: workPlans[1].id,
+          description: "Created the client site inspection schedule.",
+          createdAt: atDay(today, 8),
+        },
+        {
+          actorId: managerUser.id,
+          action: "PLAN_UPDATED",
+          entityType: "WORK_PLAN",
+          entityId: workPlans[1].id,
+          description: "Moved the inspection status to in progress.",
+          createdAt: atDay(today, 9),
+        },
+        {
+          actorId: adminUser.id,
+          action: "FINANCE_REVIEW",
+          entityType: "EMPLOYEE_FINANCE",
+          entityId: null,
+          description: "Reviewed open wage entries for today.",
+          createdAt: atDay(today, 10),
+        },
+        {
+          actorId: employeeUser.id,
+          action: "PLAN_VIEWED",
+          entityType: "WORK_PLAN",
+          entityId: workPlans[1].id,
+          description: "Opened assigned plan details from the employee view.",
+          createdAt: atDay(today, 11),
+        },
+      ],
+    });
+  }
 
   console.log("Seed completed.");
   console.log("Demo credentials:");

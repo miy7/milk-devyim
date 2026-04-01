@@ -1,19 +1,17 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
+import { getDatabaseUrl } from "@/lib/database-url";
+
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient;
 };
-
-const connectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/milk_devyim?schema=public";
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     adapter: new PrismaPg({
-      connectionString,
+      connectionString: getDatabaseUrl(),
     }),
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
