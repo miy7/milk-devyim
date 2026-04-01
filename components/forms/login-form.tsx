@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 
-import { signInAction, initialAuthActionState } from "@/app/_actions/auth";
+import { signInAction } from "@/app/_actions/auth";
+import { initialAuthActionState } from "@/lib/auth/auth-state";
 import { Button } from "@/components/ui/button";
 import { FieldMessage, Input, Label } from "@/components/ui/form-controls";
 

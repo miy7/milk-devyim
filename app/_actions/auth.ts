@@ -6,19 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { verifyPassword } from "@/lib/password";
 import { destroySession, getCurrentUser, persistSession } from "@/lib/auth/session";
-
-export type AuthActionState = {
-  status: "idle" | "error";
-  message?: string;
-  fieldErrors?: {
-    identifier?: string;
-    password?: string;
-  };
-};
-
-export const initialAuthActionState: AuthActionState = {
-  status: "idle",
-};
+import type { AuthActionState } from "@/lib/auth/auth-state";
 
 export async function signInAction(
   _previousState: AuthActionState,
